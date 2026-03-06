@@ -1,6 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import plotly.graph_objects as go
 
 data = pd.read_csv("tech_companies.csv")
 
@@ -187,3 +188,61 @@ plt.title("КОРЕЛАЦИСКА МАТРИЦА")
 plt.tight_layout()
 plt.savefig("correlation_heatmap.png")
 
+common_year = data.groupby("Company")["Year"].max().min()
+sankey_data = data[data["Year"] == common_year].copy()
+
+for _, row in sankey_data.iterrows():
+    company = row["Company"]
+    revenue = row["Revenue_in_Billions"]
+    operating_income = row["OperatingIncome_in_Billions"]
+    net_income = row["NetIncome_in_Billions"]
+    rnd = row["R&D_in_Billions"]
+
+    operating_costs = max(revenue - operating_income, 0)
+    other_operating_costs = max(operating_costs - rnd, 0)
+    other_non_operating = max(operating_income - net_income, 0)
+
+    labels = [
+        f"{company} Revenue",
+        f"{company} Operating Costs",
+        f"{company} Operating Income",
+        f"{company} R&D",
+        f"{company} Other Operating Costs",
+        f"{company} Net Income",
+        f"{company} Other Non-Operating / Tax"
+    ]
+
+    source = [0,0,1,1,2,2]
+    target = [1,2,3,4,5,6]
+
+    values = [
+        operating_costs,
+        operating_income,
+        rnd,
+        other_operating_costs,
+        net_income,
+        other_non_operating
+    ]
+
+    fig = go.Figure(data=[go.Sankey(
+        node=dict(
+            pad=20,
+            thickness=20,
+            line=dict(color="black", width=0.5),
+            label=labels
+        ),
+        link=dict(
+            source=source,
+            target=target,
+            value=values
+        )
+    )])
+
+    fig.update_layout(
+        title_text=f"ФИНАНСИСКА СТРУКТУРА НА {company}",
+        font_size=11,
+        width=1200,
+        height=700
+    )
+
+    fig.write_image(f"sankey_{company.lower().replace(' ', '_')}.png")
